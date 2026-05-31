@@ -47,6 +47,7 @@ export default function Nav() {
     const menuItems = [
         { name: 'Home', href: '/' },
         { name: 'Tuners', href: '/tuners' },
+        { name: 'Multiview', href: '/multiview' },
         ...(isAdmin ? [{ name: 'Settings', href: '/settings' }] : []),
         { name: 'Profile', href: '/profile' },
         { name: 'About', href: '/about' }
