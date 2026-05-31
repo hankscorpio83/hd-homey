@@ -24,11 +24,11 @@ export default async function MultiviewPage() {
                     eq(channels.is_active, true),
                     isNull(channels.deleted_at)
                 ),
-                orderBy: (c, { asc }) => [asc(c.guideNumber)],
             },
         },
     });
 
+    // Sort numerically by guide number (e.g. 9.1 < 11.1) rather than lexicographically
     const allChannels = tunerList.flatMap(tuner =>
         tuner.channels.map(ch => ({
             id: ch.id,
@@ -38,7 +38,7 @@ export default async function MultiviewPage() {
             guideName: ch.guideName,
             hd: ch.hd,
         }))
-    );
+    ).sort((a, b) => parseFloat(a.guideNumber) - parseFloat(b.guideNumber));
 
     if (!settings.enabled) {
         return (
@@ -71,12 +71,12 @@ export default async function MultiviewPage() {
     }
 
     return (
-        <PageContainer maxWidth="xl">
+        <div style={{ padding: '0 var(--space-4)' }}>
             <PageHeader
                 title="Multiview"
                 subtitle="Select up to 4 channels to watch simultaneously"
             />
             <MultiviewSelector channels={allChannels} maxSessions={settings.maxSessions} />
-        </PageContainer>
+        </div>
     );
 }
