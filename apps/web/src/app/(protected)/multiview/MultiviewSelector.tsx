@@ -11,6 +11,7 @@ interface ChannelOption {
     guideNumber: string;
     guideName: string;
     hd: number;
+    isFavorite: boolean;
 }
 
 interface Props {
@@ -36,9 +37,7 @@ export default function MultiviewSelector({ channels, maxSessions }: Props) {
     const toggle = (ch: ChannelOption) => {
         setSelected(prev => {
             const exists = prev.find(s => s.id === ch.id && s.tunerId === ch.tunerId);
-            if (exists) {
-                return prev.filter(s => !(s.id === ch.id && s.tunerId === ch.tunerId));
-            }
+            if (exists) return prev.filter(s => !(s.id === ch.id && s.tunerId === ch.tunerId));
             if (prev.length >= limit) return prev;
             return [...prev, ch];
         });
@@ -49,14 +48,16 @@ export default function MultiviewSelector({ channels, maxSessions }: Props) {
 
     const handleWatch = () => {
         if (selected.length < 2) return;
-        const params = selected
-            .map(ch => `${ch.tunerId}:${ch.id}`)
-            .join(',');
+        const params = selected.map(ch => `${ch.tunerId}:${ch.id}`).join(',');
         router.push(`/multiview/watch?channels=${params}&layout=${layout}`);
     };
 
-    // Group channels by tuner for display
-    const byTuner = channels.reduce<Record<string, { tunerName: string; channels: ChannelOption[] }>>(
+    // Split into favorites and non-favorites (each still numerically sorted from server)
+    const favorites = channels.filter(ch => ch.isFavorite);
+    const rest = channels.filter(ch => !ch.isFavorite);
+
+    // Group non-favorites by tuner
+    const byTuner = rest.reduce<Record<string, { tunerName: string; channels: ChannelOption[] }>>(
         (acc, ch) => {
             const key = String(ch.tunerId);
             if (!acc[key]) acc[key] = { tunerName: ch.tunerName, channels: [] };
@@ -68,7 +69,7 @@ export default function MultiviewSelector({ channels, maxSessions }: Props) {
 
     return (
         <div>
-            {/* Selection controls */}
+            {/* Controls bar */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -103,99 +104,126 @@ export default function MultiviewSelector({ channels, maxSessions }: Props) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <Button
-                        onClick={() => setSelected([])}
-                        disabled={selected.length === 0}
-                    >
+                    <Button onClick={() => setSelected([])} disabled={selected.length === 0}>
                         Clear
                     </Button>
-                    <Button
-                        onClick={handleWatch}
-                        disabled={selected.length < 2}
-                    >
+                    <Button onClick={handleWatch} disabled={selected.length < 2}>
                         ▶ Watch ({selected.length})
                     </Button>
                 </div>
             </div>
 
-            {/* Channel list per tuner */}
+            {/* Favorites group */}
+            {favorites.length > 0 && (
+                <ChannelGroup
+                    title="⭐ Favorites"
+                    channels={favorites}
+                    isSelected={isSelected}
+                    toggle={toggle}
+                    limit={limit}
+                    selectedCount={selected.length}
+                />
+            )}
+
+            {/* Per-tuner groups */}
             {Object.entries(byTuner).map(([tunerId, { tunerName, channels: chs }]) => (
-                <div key={tunerId} style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
-                        📡 {tunerName}
-                    </h3>
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                        gap: '0.5rem',
-                    }}>
-                        {chs.map(ch => {
-                            const sel = isSelected(ch);
-                            const atLimit = selected.length >= limit && !sel;
-                            return (
-                                <button
-                                    key={`${ch.tunerId}-${ch.id}`}
-                                    onClick={() => toggle(ch)}
-                                    disabled={atLimit}
-                                    aria-pressed={sel}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.75rem',
-                                        padding: '0.625rem 0.875rem',
-                                        border: sel
-                                            ? '2px solid var(--color-accent)'
-                                            : '1px solid var(--color-border)',
-                                        borderRadius: 'var(--radius-md)',
-                                        backgroundColor: sel
-                                            ? 'var(--color-accent-bg, color-mix(in srgb, var(--color-accent) 12%, transparent))'
-                                            : 'var(--color-bg-primary)',
-                                        cursor: atLimit ? 'not-allowed' : 'pointer',
-                                        opacity: atLimit ? 0.45 : 1,
-                                        textAlign: 'left',
-                                        width: '100%',
-                                        transition: 'border-color 0.15s, background-color 0.15s',
-                                    }}
-                                >
-                                    <span style={{
-                                        fontSize: '0.75rem',
-                                        fontWeight: 700,
-                                        minWidth: '2.5rem',
-                                        color: sel ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                                    }}>
-                                        {ch.guideNumber}
-                                    </span>
-                                    <span style={{
-                                        flex: 1,
-                                        fontSize: '0.875rem',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        color: 'var(--color-text-primary)',
-                                    }}>
-                                        {ch.guideName}
-                                    </span>
-                                    {ch.hd === 1 && (
-                                        <span style={{
-                                            fontSize: '0.65rem',
-                                            fontWeight: 600,
-                                            padding: '0.1rem 0.35rem',
-                                            backgroundColor: 'var(--color-info-bg)',
-                                            color: 'var(--color-info)',
-                                            borderRadius: '3px',
-                                        }}>
-                                            HD
-                                        </span>
-                                    )}
-                                    {sel && (
-                                        <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>✓</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
+                <ChannelGroup
+                    key={tunerId}
+                    title={`📡 ${tunerName}`}
+                    channels={chs}
+                    isSelected={isSelected}
+                    toggle={toggle}
+                    limit={limit}
+                    selectedCount={selected.length}
+                />
             ))}
+        </div>
+    );
+}
+
+interface ChannelGroupProps {
+    title: string;
+    channels: ChannelOption[];
+    isSelected: (ch: ChannelOption) => boolean;
+    toggle: (ch: ChannelOption) => void;
+    limit: number;
+    selectedCount: number;
+}
+
+function ChannelGroup({ title, channels, isSelected, toggle, limit, selectedCount }: ChannelGroupProps) {
+    return (
+        <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--color-text-secondary)' }}>
+                {title}
+            </h3>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                gap: '0.5rem',
+            }}>
+                {channels.map(ch => {
+                    const sel = isSelected(ch);
+                    const atLimit = selectedCount >= limit && !sel;
+                    return (
+                        <button
+                            key={`${ch.tunerId}-${ch.id}`}
+                            onClick={() => toggle(ch)}
+                            disabled={atLimit}
+                            aria-pressed={sel}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.625rem 0.875rem',
+                                border: sel
+                                    ? '2px solid var(--color-accent)'
+                                    : '1px solid var(--color-border)',
+                                borderRadius: 'var(--radius-md)',
+                                backgroundColor: sel
+                                    ? 'var(--color-accent-bg, color-mix(in srgb, var(--color-accent) 12%, transparent))'
+                                    : 'var(--color-bg-primary)',
+                                cursor: atLimit ? 'not-allowed' : 'pointer',
+                                opacity: atLimit ? 0.45 : 1,
+                                textAlign: 'left',
+                                width: '100%',
+                                transition: 'border-color 0.15s, background-color 0.15s',
+                            }}
+                        >
+                            <span style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                minWidth: '2.5rem',
+                                color: sel ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                            }}>
+                                {ch.guideNumber}
+                            </span>
+                            <span style={{
+                                flex: 1,
+                                fontSize: '0.875rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                color: 'var(--color-text-primary)',
+                            }}>
+                                {ch.guideName}
+                            </span>
+                            {ch.hd === 1 && (
+                                <span style={{
+                                    fontSize: '0.65rem',
+                                    fontWeight: 600,
+                                    padding: '0.1rem 0.35rem',
+                                    backgroundColor: 'var(--color-info-bg)',
+                                    color: 'var(--color-info)',
+                                    borderRadius: '3px',
+                                }}>
+                                    HD
+                                </span>
+                            )}
+                            {sel && <span style={{ color: 'var(--color-accent)', fontWeight: 700 }}>✓</span>}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 }
