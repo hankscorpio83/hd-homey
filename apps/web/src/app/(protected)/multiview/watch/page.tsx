@@ -2,7 +2,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getDb } from '@/lib/database/db';
-import { channels, tuners } from '@/lib/database/schema';
+import { channels } from '@/lib/database/schema';
 import { generateStreamToken } from '@/lib/stream-token';
 import { getTranscodingSettings } from '@/lib/settings';
 import MultiviewGrid from './MultiviewGrid';
@@ -61,7 +61,6 @@ export default async function MultiviewWatchPage({ searchParams }: PageProps) {
 
     const db = await getDb();
 
-    // Fetch and validate each channel, then generate tokens
     const panels: ChannelPanel[] = [];
 
     for (const { tunerId, channelId } of pairs) {
@@ -93,7 +92,7 @@ export default async function MultiviewWatchPage({ searchParams }: PageProps) {
         notFound();
     }
 
-    const gridLayout = layout === '2x1' ? '2x1' : '2x2';
+    const gridLayout = layout === '2x1' ? '2x1' : layout === 'pip' ? 'pip' : '2x2';
 
     return (
         <MultiviewGrid panels={panels} layout={gridLayout} />

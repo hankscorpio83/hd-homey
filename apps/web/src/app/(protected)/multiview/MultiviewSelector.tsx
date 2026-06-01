@@ -22,9 +22,16 @@ const MAX_PANELS = 4;
 
 export default function MultiviewSelector({ channels, maxSessions }: Props) {
     const router = useRouter();
-    const limit = Math.min(MAX_PANELS, maxSessions);
     const [selected, setSelected] = useState<ChannelOption[]>([]);
-    const [layout, setLayout] = useState<'2x1' | '2x2'>('2x2');
+    const [layout, setLayout] = useState<'2x1' | '2x2' | 'pip'>('2x2');
+
+    const pipLimit = layout === 'pip' ? 2 : MAX_PANELS;
+    const limit = Math.min(pipLimit, maxSessions);
+
+    const handleLayoutChange = (l: '2x1' | '2x2' | 'pip') => {
+        setLayout(l);
+        if (l === 'pip') setSelected(prev => prev.slice(0, 2));
+    };
 
     const toggle = (ch: ChannelOption) => {
         setSelected(prev => {
@@ -86,11 +93,12 @@ export default function MultiviewSelector({ channels, maxSessions }: Props) {
                     <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Layout:</label>
                     <select
                         value={layout}
-                        onChange={e => setLayout(e.target.value as '2x1' | '2x2')}
+                        onChange={e => handleLayoutChange(e.target.value as '2x1' | '2x2' | 'pip')}
                         style={{ fontSize: '0.875rem', padding: '0.25rem 0.5rem' }}
                     >
                         <option value="2x1">2 panels (side by side)</option>
                         <option value="2x2">4 panels (2×2 grid)</option>
+                        <option value="pip">Picture-in-picture (2 channels)</option>
                     </select>
                 </div>
 
